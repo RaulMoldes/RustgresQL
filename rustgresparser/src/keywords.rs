@@ -80,11 +80,8 @@ impl LiteralDelimiter {
         }
     }
     pub fn variants() -> Vec<LiteralDelimiter> {
-    vec![
-        LiteralDelimiter::SingleQuote,
-        LiteralDelimiter::DoubleQuote,
-    ]
-}
+        vec![LiteralDelimiter::SingleQuote, LiteralDelimiter::DoubleQuote]
+    }
 }
 
 // Macro para automatizar la creación de Keywords como structs. Cada Keyword es un struct con un solo campo con el valor en String.
@@ -96,7 +93,7 @@ trait Keyword {
 // Función para convertir de camelCase a snake_case
 fn to_snake_case(input: &str) -> String {
     let mut result = String::new();
-    
+
     for (i, c) in input.chars().enumerate() {
         if c.is_uppercase() {
             // Si es la primera letra o está en medio, agregamos un guion bajo antes de la letra
@@ -154,12 +151,8 @@ macro_rules! keyword_from_enum {
     };
 }
 
-
-
-
-
 // Uso de la macro para declarar el enum y los structs correspondientes
-keyword_from_enum!( Keywords {
+keyword_from_enum!(Keywords {
     Abs,
     Access,
     Add,
@@ -315,7 +308,7 @@ keyword_from_enum!( Keywords {
     Distinct,
     Distribute,
     Div,
-    r#Do,
+    Do,
     Double,
     Dow,
     Doy,
@@ -362,7 +355,7 @@ keyword_from_enum!( Keywords {
     External,
     Extract,
     Fail,
-    r#False,
+    False,
     Fetch,
     Fields,
     File,
@@ -370,7 +363,7 @@ keyword_from_enum!( Keywords {
     FileFormat,
     Fill,
     Filter,
-    r#Final,
+    Final,
     First,
     FirstValue,
     FixedString,
@@ -382,7 +375,7 @@ keyword_from_enum!( Keywords {
     Floor,
     Flush,
     Following,
-    r#For,
+    For,
     Force,
     ForceNotNull,
     ForceNull,
@@ -431,7 +424,7 @@ keyword_from_enum!( Keywords {
     Ignore,
     ILike,
     Immediate,
-    r#In,
+    In,
     Include,
     IncludeNullValues,
     Increment,
@@ -509,11 +502,11 @@ keyword_from_enum!( Keywords {
     LowCardinality,
     Lower,
     LowPriority,
-    r#Macro,
+    Macro,
     ManagedLocation,
     Map,
     Masking,
-    r#Match,
+    Match,
     Matched,
     Matches,
     MatchCondition,
@@ -607,7 +600,7 @@ keyword_from_enum!( Keywords {
     Restart,
     Restrict,
     Result,
-    r#Return,
+    Return,
     Returns,
     Right,
     Rollback,
@@ -655,7 +648,7 @@ keyword_from_enum!( Keywords {
     Substring,
     Successful,
     Sum,
-    r#Super,
+    Super,
     Surrogate,
     Symmetric,
     Table,
@@ -664,6 +657,7 @@ keyword_from_enum!( Keywords {
     Temp,
     Temporary,
     Text,
+    Then,
     Time,
     Timezone,
     To,
@@ -671,10 +665,10 @@ keyword_from_enum!( Keywords {
     Total,
     Transform,
     Trigger,
-    r#True,
+    True,
     Truncate,
     Unbounded,
-    r#Union,
+    Union,
     Unique,
     Unnest,
     Unknown,
@@ -691,23 +685,28 @@ keyword_from_enum!( Keywords {
     Wait,
     Week,
     When,
-    r#Where,
-    r#While,
+    Where,
+    While,
     With,
     Write,
     Year,
     Zorder,
 });
 
-
 pub fn all_keywords() -> Vec<String> {
     Keywords::variants().iter().map(|k| k.as_str()).collect()
 }
 
 pub fn all_symbols() -> Vec<char> {
-    Symbols::variants().iter().map(|s| s.as_str().chars().next().unwrap()).collect::<Vec<char>>()
+    Symbols::variants()
+        .iter()
+        .map(|s| s.as_str().chars().next().unwrap())
+        .collect::<Vec<char>>()
 }
 
 pub fn all_delimiters() -> Vec<char> {
-    LiteralDelimiter::variants().iter().map(|s| s.as_str().chars().next().unwrap()).collect::<Vec<char>>()
+    LiteralDelimiter::variants()
+        .iter()
+        .map(|s| s.as_str().chars().next().unwrap())
+        .collect::<Vec<char>>()
 }

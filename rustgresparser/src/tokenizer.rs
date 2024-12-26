@@ -1,9 +1,6 @@
 // Generates sql tokens from the input string.
-use rustgresparser::keywords::{all_keywords, all_symbols, all_delimiters};
+use rustgresparser::keywords::{all_delimiters, all_keywords, all_symbols};
 use std::str::Chars;
-
-
-
 
 #[derive(Debug, PartialEq)]
 enum Token {
@@ -49,9 +46,9 @@ impl<'a> Tokenizer<'a> {
                     tokens.push(Token::Symbol(c));
                     self.advance();
                 }
-               
+
                 // String literals
-                c if all_delimiters().contains(&c)  => {
+                c if all_delimiters().contains(&c) => {
                     tokens.push(self.consume_literal(c));
                 }
                 // Keywords and identifiers
@@ -130,7 +127,7 @@ fn is_keyword(word: &str) -> bool {
 }
 
 fn main() {
-    let sql_query = "SELECT name, age FROM users WHERE age > 30;";
+    let sql_query = "SELECT name, age, CASE WHEN age < 6 THEN bebe ELSE mayor END as tipo FROM users WHERE age > 30;";
     let tokenizer = Tokenizer::new(sql_query);
     let tokens = tokenizer.tokenize();
 

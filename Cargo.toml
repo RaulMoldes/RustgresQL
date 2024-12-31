@@ -1,5 +1,5 @@
 [package]
-name = "rginternals"
+name = "rustgresql"
 version = "0.1.0"
 edition = "2021"
 

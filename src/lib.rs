@@ -1,1 +1,2 @@
-pub mod storagemanager;
+mod storagemanager;
+mod catalog;

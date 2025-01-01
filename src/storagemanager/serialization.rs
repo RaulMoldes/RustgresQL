@@ -5,106 +5,165 @@ const MAX_FLOAT_SIZE: usize = 8; // 8 bytes for a 64-bit float
 const MAX_STR_SIZE: usize = 32; // 32 bytes for a text field
 const BOOLEAN_SIZE: usize = 1; // 1 byte for a boolean
 
+
+
+
+
+
 #[derive(Debug, Clone, PartialEq)]
-enum DataType {
-    Varchar(String),  // Varchar con longitud máxima de n (< 255) y el contenido de la cadena
-    Int32(i32),           // INT32 ocupa 4 bytes
-    Float64(f64),         // FLOAT64 ocupa 8 bytes
-    Bool(bool),           // BOOL ocupa 1 byte
-    Null,                 // NULL representado por un bitmap de 1 byte
+pub enum DataType {
+    /// Represents a variable-length character string with a maximum length of 255 characters.
+    Varchar(String),  // Varchar with a maximum length of 255 characters
+    Int32(i32),           // INT32 4 bytes
+    Float64(f64),         // FLOAT64  8 bytes
+    Bool(bool),           // BOOL 1 byte
+    Null,                 // NULL represented as  bitmap of 1 byte
 }
 
 
-// TRAITS
+impl DataType {
+    pub fn get_type(&self) -> u8 {
+        match self {
+            DataType::Varchar(_) => 0x01,
+            DataType::Int32(_) => 0x02,
+            DataType::Float64(_) => 0x03,
+            DataType::Bool(_) => 0x04,
+            DataType::Null => 0x00,
+        }
+    }
+
+    pub fn as_string(&self) -> String {
+        match self {
+            DataType::Varchar(value) => value.clone(),
+            DataType::Int32(value) => value.to_string(),
+            DataType::Float64(value) => value.to_string(),
+            DataType::Bool(value) => value.to_string(),
+            DataType::Null => "NULL".to_string(),
+        }
+    }
+
+    pub fn as_int(&self) -> i32 {
+        match self {
+            DataType::Int32(value) => *value,
+            _ => panic!("Cannot convert to integer"),
+        }
+    }
+
+    pub fn as_float(&self) -> f64 {
+        match self {
+            DataType::Float64(value) => *value,
+            _ => panic!("Cannot convert to float"),
+        }
+    }
+
+    pub fn as_bool(&self) -> bool {
+        match self {
+            DataType::Bool(value) => *value,
+            _ => panic!("Cannot convert to boolean"),
+        }
+    }
+}
+
+
+// TRAIT SERIALIZABLE
+// THIS IS MY IMPLEMENTATION OF THE SERIALIZABLE TRAIT
+// I WILL USE THIS TRAIT TO SERIALIZE AND DESERIALIZE DATA TYPES
+// THIS WAY I WILL BE ABLE TO SERIALIZE AND DESERIALIZE DATA CATALOGS, PAGES AND EVEN AN ENTIRE DATABASE.
 pub trait Serializable {
     fn serialize(&self) -> Vec<u8>;
     fn deserialize(buffer: &[u8], offset: &mut usize) -> Self where Self: Sized;
     // Serializa una lista de tipos de datos
     fn serialize_list(data: &[Self]) -> Vec<u8> where Self: Sized {
-        let mut result = Vec::new();
+        let list_len= DataType::Int32(data.len() as i32);
+        let mut result = list_len.serialize();
         for item in data {
             result.extend(item.serialize());
         }
         result
     }
 
-    fn deserialize_list(data: &[u8]) -> Vec<Self> where Self: Sized {
-        let mut offset = 0;
+    fn deserialize_list(buffer: &[u8], offset: &mut usize) -> Vec<Self> where Self: Sized {
+        // Deserializa la longitud de la lista
+        let len = DataType::deserialize(buffer, offset);
+        
         let mut result = Vec::new();
-        while offset < data.len() {
-            result.push(Self::deserialize(data, &mut offset));
+        for _ in 0..len.as_int() {
+            result.push(Self::deserialize(buffer, offset));
         }
         result
     }
 }
 
-// Implementación de serialización para cada tipo de dato.
+// Implementation of the Serializable trait for DataType
 impl Serializable for DataType {
     fn serialize(&self) -> Vec<u8> {
         let mut buffer = Vec::new();
 
         match self {
             DataType::Varchar(value) => {
-                buffer.push(0x01); // Marca de tipo para Varchar
-                // Se asegura que el string no exceda el tamaño máximo
+                buffer.push(0x01); // Type marker for VARCHAR
                 let len = value.len() as u8;
                 if len >  MAX_STR_SIZE as u8 {
                     panic!("String length exceeds maximum length");
                 }
                 
-                // Primer byte: longitud del string (1 byte)
+                // String length (1 byte)
                 buffer.push(len);
-                // Convertir el string a bytes
+                // Convert the string to bytes and add a padding
                 let mut padded_value = value.as_bytes().to_vec();
                 let padding_size = MAX_STR_SIZE - len as usize;
                 if padding_size > 0 {
-                        padded_value.extend(vec![0u8; padding_size]); // Añadir ceros de padding
+                        padded_value.extend(vec![0u8; padding_size]); // Add zeros for padding
                 }
 
-                // Los bytes restantes: el contenido del string con padding
+                // The underlying buffer is extended with the bytes of the string
                 buffer.extend(padded_value);
                          
                 
             }
 
             DataType::Int32(value) => {
-                buffer.push(0x02); // Marca de tipo para INT32
+                buffer.push(0x02); // Type marker for INT32
                 let bytes = if ENDIANESS {
                     value.to_le_bytes()
                 } else {
                     value.to_be_bytes()
                 };
-                // Serialización de INT32 (4 bytes)
+                // Serialization of INT32 (4 bytes)
                 buffer.extend(&bytes);
             }
 
             DataType::Float64(value) => {
-                buffer.push(0x03); // Marca de tipo para FLOAT64
+                buffer.push(0x03); // Type marker for FLOAT64
                 let bytes = if ENDIANESS {
                     value.to_le_bytes()
                 } else {
                     value.to_be_bytes()
                 };
-                // Serialización de FLOAT64 (8 bytes)
+                // Serialization of FLOAT64 (8 bytes)
                 buffer.extend(&bytes);
             }
 
             DataType::Bool(value) => {
-                buffer.push(0x04);  // Marca de tipo para BOOL
-                // Serialización de BOOL (1 byte)
+                buffer.push(0x04);  // Type marker for BOOL
+                // Serialization of BOOL (1 byte)
                 buffer.push(*value as u8);
             }
 
             DataType::Null => {
-                buffer.push(0x00); // Marca de tipo para NULL
-                // Serialización de NULL (bitmap de 1 byte)
-                buffer.push(0u8);  // Representamos NULL como un byte 0
+                buffer.push(0x00); // Type marker for NULL
+                // Serialization of NULL (1 byte)
+                buffer.push(0u8);  // NULL is represented as a bitmap of 1 byte
             }
         }
 
         buffer
     }
 
+
+    // Deserializes a datatype
+    // The function reads the type marker and then deserializes the data accordingly
+    // the offset is updated to point to the next byte after the deserialized data
     fn deserialize(buffer: &[u8], offset: &mut usize) -> Self where Self: Sized {
         let data_type = buffer[*offset];
         *offset += 1;
@@ -159,14 +218,14 @@ impl Serializable for DataType {
 
 #[cfg(test)]
 mod tests {
-    use super::*; // Importa todo lo necesario desde el módulo principal
+    use super::*; // Import symbols from the parent module
 
-    // Helper para comprobar igualdad y mostrar errores
+    // Helper function to compare two DataType values
     fn assert_eq_data(expected: DataType, result: DataType) {
         assert_eq!(expected, result, "Expected {:?}, got {:?}", expected, result);
     }
 
-    // Prueba de serialización/deserialización individual
+    // Unit test for the DataType enum
     #[test]
     fn test_individual() {
         use DataType::*;
@@ -187,7 +246,7 @@ mod tests {
         }
     }
 
-    // Prueba de serialización/deserialización de listas
+    // Test if we can serialize and deserialize a list of data types
     #[test]
     fn test_list() {
         use DataType::*;
@@ -200,14 +259,14 @@ mod tests {
         ];
 
         let serialized = Serializable::serialize_list(&data_list);
-        let deserialized_list = Serializable::deserialize_list(&serialized);
+        let deserialized_list = Serializable::deserialize_list(&serialized, &mut 0);
         assert_eq!(data_list, deserialized_list, "Mismatch in list lengths");
         for (expected, result) in data_list.iter().zip(deserialized_list) {
             assert_eq_data(expected.clone(), result.clone());
         }
     }
 
-    // Prueba de casos límite
+    // Test edge cases for serialization and deserialization
     #[test]
     fn test_edge_cases() {
         use DataType::*;

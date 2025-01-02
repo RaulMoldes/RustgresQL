@@ -72,9 +72,18 @@ impl DataType {
 pub trait Serializable {
     fn serialize(&self) -> Vec<u8>;
     fn deserialize(buffer: &[u8], offset: &mut usize) -> Self where Self: Sized;
-    // Serializa una lista de tipos de datos
-    fn serialize_list(data: &[Self]) -> Vec<u8> where Self: Sized {
-        let list_len= DataType::Int32(data.len() as i32);
+
+    fn serialize_list<T: Serializable>(data: &[T]) -> Vec<u8> where Self: Sized {
+        let list_len = DataType::Int32(data.len() as i32);
+        let mut result = list_len.serialize();
+        for item in data {
+            result.extend(item.serialize());
+        }
+        result
+    }
+
+    fn serialize_vecdeque<T: Serializable>(data: &std::collections::VecDeque<T>) -> Vec<u8> where Self: Sized {
+        let list_len = DataType::Int32(data.len() as i32);
         let mut result = list_len.serialize();
         for item in data {
             result.extend(item.serialize());
@@ -89,6 +98,18 @@ pub trait Serializable {
         let mut result = Vec::new();
         for _ in 0..len.as_int() {
             result.push(Self::deserialize(buffer, offset));
+        }
+        result
+    }
+
+    fn deserialize_vecdeque(buffer: &[u8], offset: &mut usize) -> std::collections::VecDeque<Self> where Self: Sized {
+        println!("Buffer: {:?}", buffer[*offset..*offset+10].to_vec());
+        // Deserializa la longitud de la lista
+        let len = DataType::deserialize(buffer, offset);
+        println!("Len: {:?}", len);
+        let mut result = std::collections::VecDeque::new();
+        for _ in 0..len.as_int() {
+            result.push_back(Self::deserialize(buffer, offset));
         }
         result
     }
@@ -258,7 +279,7 @@ mod tests {
             Null,
         ];
 
-        let serialized = Serializable::serialize_list(&data_list);
+        let serialized = DataType::serialize_list(&data_list);
         let deserialized_list = Serializable::deserialize_list(&serialized, &mut 0);
         assert_eq!(data_list, deserialized_list, "Mismatch in list lengths");
         for (expected, result) in data_list.iter().zip(deserialized_list) {

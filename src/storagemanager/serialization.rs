@@ -1,3 +1,4 @@
+use std::hash::{Hash, Hasher};
 
 const ENDIANESS:bool = cfg!(target_endian = "little"); // True if little endian, false if big endian
 const MAX_INT4_SIZE: usize = 4; // 4 bytes for a 32-bit integer
@@ -10,7 +11,7 @@ const BOOLEAN_SIZE: usize = 1; // 1 byte for a boolean
 
 
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq,)]
 pub enum DataType {
     /// Represents a variable-length character string with a maximum length of 255 characters.
     Varchar(String),  // Varchar with a maximum length of 255 characters
@@ -64,6 +65,20 @@ impl DataType {
     }
 }
 
+impl Eq for DataType {}
+
+impl Hash for DataType {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.get_type().hash(state);
+        match self {
+            DataType::Varchar(value) => value.hash(state),
+            DataType::Int32(value) => value.hash(state),
+            DataType::Float64(value) => value.to_bits().hash(state),
+            DataType::Bool(value) => value.hash(state),
+            DataType::Null => 0.hash(state),
+        }
+    }
+}
 
 // TRAIT SERIALIZABLE
 // THIS IS MY IMPLEMENTATION OF THE SERIALIZABLE TRAIT
@@ -110,6 +125,28 @@ pub trait Serializable {
         let mut result = std::collections::VecDeque::new();
         for _ in 0..len.as_int() {
             result.push_back(Self::deserialize(buffer, offset));
+        }
+        result
+    }
+
+    fn serialize_hashmap<T: Serializable>(data: &std::collections::HashMap<DataType, T>) -> Vec<u8> where Self: Sized {
+        let list_len = DataType::Int32(data.len() as i32);
+        let mut result = list_len.serialize();
+        for (key, value) in data {
+            result.extend(key.serialize());
+            result.extend(value.serialize());
+        }
+        result
+    }
+
+    fn deserialize_hashmap(buffer: &[u8], offset: &mut usize) -> std::collections::HashMap<DataType, Self> where Self: Sized {
+        // Deserializa la longitud de la lista
+        let len = DataType::deserialize(buffer, offset);
+        let mut result = std::collections::HashMap::new();
+        for _ in 0..len.as_int() {
+            let key = DataType::deserialize(buffer, offset);
+            let value = Self::deserialize(buffer, offset);
+            result.insert(key, value);
         }
         result
     }

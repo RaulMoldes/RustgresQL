@@ -8,7 +8,7 @@
 // The ManagedFile struct is a wrapper for both types of files. It implements the SmallFile trait for small files, and the LargeFile trait for large files. Dependending on the file size, the storage manager will choose the appropriate file type.
 
 use std::fs::File;
-use std::io::{Read, Write, Result, Error, ErrorKind};
+use std::io::{Read, Write, Seek, SeekFrom, Result, Error, ErrorKind};
 
 
 // Trait for reading and writing small files that can fit in memory
@@ -17,7 +17,11 @@ pub trait SmallFile {
     fn write_all(&self, buf: &[u8]) -> Result<()>;
 }
 
-
+pub trait LargeFile {
+   
+    fn read(&self, offset: usize, size: usize) -> Result<Vec<u8>>;
+    fn write(&self, offset: usize, buf: &[u8]) -> Result<()>;
+}
 // Struct of a file that can be read and written by the storage manager
 #[derive(Debug)]
 pub struct ManagedFile {
@@ -41,6 +45,28 @@ impl ManagedFile {
     }
 }
 
+
+impl LargeFile for ManagedFile {
+    
+
+    fn read(&self, offset: usize, size: usize) -> Result<Vec<u8>> {
+        let mut file = self.open_file("r")?;
+        // Spin the disk to the desired offset
+        file.seek(SeekFrom::Start(offset as u64))?;
+        let mut buffer = vec![0; size];
+        file.read_exact(&mut buffer)?;
+        Ok(buffer)
+    }
+
+    fn write(&self, offset: usize, buf: &[u8]) -> Result<()> {
+        let mut file = self.open_file("w")?;
+        // Spin the disk to the desired offset
+        file.seek(SeekFrom::Start(offset as u64))?;
+        file.write_all(buf)?;
+        Ok(())
+        
+    }
+}
 
 // Implementation of the SmallFile trait for ManagedFile
 impl SmallFile for ManagedFile {

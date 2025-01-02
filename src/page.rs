@@ -1,31 +1,37 @@
-
-use crate::storagemanager::fileops::{ManagedFile, SmallFile};
+// MOD page
+// src/page.rs
+// This module contains the implementation of the page module.
+// A page is a unit of storage in the database.
+// A page has a header, a list of slots and a list of tuples.
 use std::collections::VecDeque;
 use crate::storagemanager::serialization::{Serializable, DataType};
 
 
-const MAX_PAGE_SIZE: u16 = 4096; // RANDOMLY SELECTED MAX PAGE SIZE
-const HEADER_SIZE: u16 = 53; // HEADER MAX SIZE IN BYTES
+const MAX_PAGE_SIZE: u16 = 4096; // SELECTED MAX PAGE SIZE
+
 
 // CUSTOM TYPES
-type PageId = DataType;
+pub type PageId = DataType;
 type TupleId = DataType;
 
+
+// STRUCT HEADER
+// The header of the page contains metadata about the page
 #[derive(Debug)]
 struct Header{
     page_type: PageType,
-    free_space: DataType, // FREE SPACE IN THE PAGE 
+    free_space: DataType, // AMOUNT OF FREE SPACE IN THE PAGE 
     page_number: PageId, // PAGE NUMBER
     next_page: PageId,
-    last_slot: TupleId,
-    offset: DataType,
+    last_slot: TupleId, // POINTER TO THE TUPLE ID OF THE LAST SLOT
+    offset: DataType, // OFFSET WHERE THE LAST TUPLE STARTS
 }
 
 impl Header{
     fn new(page_type: PageType, page_number: PageId, next_page: PageId, free_space: Option<DataType>) -> Self{
         Header{
             page_type,
-            free_space: free_space.unwrap_or_else(|| DataType::Int32(MAX_PAGE_SIZE as i32)),
+            free_space: free_space.unwrap_or(DataType::Int32(MAX_PAGE_SIZE as i32)),
             page_number,
             next_page,
             last_slot: DataType::Int32(0), // INITIALLY NO SLOTS
@@ -58,7 +64,7 @@ impl Serializable for Header {
 }
 
 #[derive(Debug)]
-enum PageType{
+pub enum PageType{
     Data(DataType), // Varchar:: 'DATA'
     Index(DataType), // Varchar:: 'INDEX'
 }
@@ -150,8 +156,19 @@ impl Serializable for Tuple {
 }
 
 
+
+// STRUCT PAGE
+// A page is a unit of storage in the database
+// A page has a header, a list of slots and a list of tuples
+// MAX PAGE SIZE is 4096 bytes
+// The page is serialized as follows:
+// 1. Serialize the header  
+// 2. Serialize the slots
+// 3. Serialize the tuples
+// The slots are stored at the beginning of the page and grow towards the end
+// The tuples are stored at the end of the page and grow towards the beginning
 #[derive(Debug)]
-struct Page{
+pub struct Page{
     header: Header,
     slots: VecDeque<Slot>,    
     data: VecDeque<Tuple>,
@@ -166,8 +183,8 @@ impl Page{
         
         Page{
             header,
-            slots: slots.unwrap_or_else(VecDeque::new),
-            data: data.unwrap_or_else(VecDeque::new),
+            slots: slots.unwrap_or_default(),
+            data: data.unwrap_or_default(),
         }
     }
 
@@ -281,6 +298,10 @@ impl Serializable for Page {
         Page::new(header, Some(slots), Some(tuples))
     }
 }
+
+// Mod tests
+// This module contains the tests for the page module
+// The tests are run using the command cargo test
 #[cfg(test)]
 mod tests {
     use super::*;
